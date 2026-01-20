@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/cozy-creator/cozy-cli/internal/config"
+	"github.com/cozy-creator/cozyctl/internal/config"
 	"golang.org/x/term"
 )
 

@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/cozy-creator/cozy-cli/cmd/auth"
-	"github.com/cozy-creator/cozy-cli/internal/config"
+	"github.com/cozy-creator/cozyctl/cmd/auth"
+	"github.com/cozy-creator/cozyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -14,9 +14,9 @@ var (
 func Execute() error {
 
 	var rootCmd = &cobra.Command{
-		Use:   "cozy",
-		Short: "Cozy CLI - deploy and manage ML functions",
-		Long: `Cozy CLI is a command-line tool for deploying and managing
+		Use:   "cozyctl",
+		Short: "cozyctl - deploy and manage ML functions",
+		Long: `cozyctl is a command-line tool for deploying and managing
 machine learning functions on the Cozy platform.
 
 Commands:

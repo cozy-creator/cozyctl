@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/cozy-creator/cozy-cli/cmd"
+	"github.com/cozy-creator/cozyctl/cmd"
 )
 
 func main() {

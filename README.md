@@ -1,10 +1,12 @@
+# cozyctl
+
 This CLI makes it convenient for developers to interact with:
 
 - Gen-Builder service, to create deployments
 - Cozy-Hub service, to upload and download model-weights
 - Gen-Orchestrator service, to invoke functions and fetch results back
 
-The Cozy CLI will have these functionalities:
+cozyctl will have these functionalities:
 
 ### 1. Auth
 Authentication management

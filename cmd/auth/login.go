@@ -1,7 +1,7 @@
 package auth
 
 import (
-	authInternal "github.com/cozy-creator/cozy-cli/internal/auth"
+	authInternal "github.com/cozy-creator/cozyctl/internal/auth"
 	"github.com/spf13/cobra"
 )
 
@@ -23,9 +23,9 @@ You can provide credentials via:
   3. Flags: --api-key
 
 Example:
-  cozy auth login
-  cozy auth login --api-key sk_live_xxx
-  COZY_API_KEY=sk_live_xxx cozy auth login`,
+  cozyctl auth login
+  cozyctl auth login --api-key sk_live_xxx
+  COZY_API_KEY=sk_live_xxx cozyctl auth login`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var cfgPath string
 			if cfgFile != nil {

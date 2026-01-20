@@ -1,4 +1,4 @@
-module github.com/cozy-creator/cozy-cli
+module github.com/cozy-creator/cozyctl
 
 go 1.24.0
 
