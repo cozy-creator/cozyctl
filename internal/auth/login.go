@@ -1,4 +1,4 @@
-package cmd
+package auth
 
 import (
 	"bufio"
@@ -10,49 +10,21 @@ import (
 	"syscall"
 
 	"github.com/cozy-creator/cozy-cli/internal/config"
-	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
 
-var (
-	loginAPIKey  string
-	loginHubURL  string
-	loginBuilder string
-)
-
-func AuthCmd() *cobra.Command {
-	authCmd := &cobra.Command{
-		Use:   "login",
-		Short: "Authenticate with Cozy",
-		Long: `Authenticate with the Cozy platform using your API key.
-
-You can provide credentials via:
-  1. Interactive prompt (default)
-  2. Environment variables: COZY_API_KEY
-  3. Flags: --api-key
-
-Example:
-  cozy login
-  cozy login --api-key sk_live_xxx
-  COZY_API_KEY=sk_live_xxx cozy login`,
-		RunE: runLogin,
-	}
-
-	authCmd.Flags().StringVar(&loginAPIKey, "api-key", "", "API key (or set COZY_API_KEY)")
-	authCmd.Flags().StringVar(&loginHubURL, "hub-url", "https://api.cozy.art", "Cozy Hub API URL")
-	authCmd.Flags().StringVar(&loginBuilder, "builder-url", "https://builder.cozy.art", "Gen-builder API URL")
-
-	return authCmd
+type TenantInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
-func runLogin(cmd *cobra.Command, args []string) error {
-	apiKey := loginAPIKey
+func RunLogin(apiKey, hubURL, builderURL, cfgPath string) error {
 	if apiKey == "" {
 		apiKey = os.Getenv("COZY_API_KEY")
 	}
 	if apiKey == "" {
 		var err error
-		apiKey, err = promptAPIKey()
+		apiKey, err = PromptAPIKey()
 		if err != nil {
 			return err
 		}
@@ -61,20 +33,20 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	fmt.Println("Authenticating...")
 
 	// Validate the API key with cozy-hub
-	tenant, err := validateAPIKey(loginHubURL, apiKey)
+	tenant, err := ValidateAPIKey(hubURL, apiKey)
 	if err != nil {
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 
 	// Save config
 	cfg := &config.Config{
-		HubURL:     loginHubURL,
-		BuilderURL: loginBuilder,
+		HubURL:     hubURL,
+		BuilderURL: builderURL,
 		TenantID:   tenant.ID,
 		Token:      apiKey,
 	}
 
-	if err := config.Save(cfg, cfgFile); err != nil {
+	if err := config.Save(cfg, cfgPath); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
@@ -84,7 +56,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func promptAPIKey() (string, error) {
+func PromptAPIKey() (string, error) {
 	fmt.Print("API Key: ")
 
 	// Try to read password without echo
@@ -106,12 +78,7 @@ func promptAPIKey() (string, error) {
 	return strings.TrimSpace(key), nil
 }
 
-type tenantInfo struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-func validateAPIKey(hubURL, apiKey string) (*tenantInfo, error) {
+func ValidateAPIKey(hubURL, apiKey string) (*TenantInfo, error) {
 	url := strings.TrimRight(hubURL, "/") + "/api/v1/auth/me"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -132,7 +99,7 @@ func validateAPIKey(hubURL, apiKey string) (*tenantInfo, error) {
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	var tenant tenantInfo
+	var tenant TenantInfo
 	if err := json.NewDecoder(resp.Body).Decode(&tenant); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

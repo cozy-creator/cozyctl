@@ -14,49 +14,51 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var buildsCmd = &cobra.Command{
-	Use:   "builds",
-	Short: "Manage builds",
-	Long: `Manage builds on the Cozy platform.
-
-Subcommands:
-  list    List recent builds
-  logs    View build logs
-  cancel  Cancel a running build`,
-}
-
-var buildsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List recent builds",
-	RunE:  runBuildsList,
-}
-
-var buildsLogsCmd = &cobra.Command{
-	Use:   "logs <build_id>",
-	Short: "View build logs",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runBuildsLogs,
-}
-
-var buildsCancelCmd = &cobra.Command{
-	Use:   "cancel <build_id>",
-	Short: "Cancel a running build",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runBuildsCancel,
-}
-
 var (
 	buildsListLimit  int
 	buildsLogsFollow bool
 )
 
-func init() {
+func BuildsCmd() *cobra.Command {
+	buildsCmd := &cobra.Command{
+		Use:   "builds",
+		Short: "Manage builds",
+		Long: `Manage builds on the Cozy platform.
+
+Subcommands:
+  list    List recent builds
+  logs    View build logs
+  cancel  Cancel a running build`,
+	}
+
+	buildsListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List recent builds",
+		RunE:  runBuildsList,
+	}
+
+	buildsLogsCmd := &cobra.Command{
+		Use:   "logs <build_id>",
+		Short: "View build logs",
+		Args:  cobra.ExactArgs(1),
+		RunE:  runBuildsLogs,
+	}
+
+	buildsCancelCmd := &cobra.Command{
+		Use:   "cancel <build_id>",
+		Short: "Cancel a running build",
+		Args:  cobra.ExactArgs(1),
+		RunE:  runBuildsCancel,
+	}
+
+	buildsListCmd.Flags().IntVarP(&buildsListLimit, "limit", "n", 10, "number of builds to show")
+	buildsLogsCmd.Flags().BoolVarP(&buildsLogsFollow, "follow", "f", false, "follow logs (stream)")
+
 	buildsCmd.AddCommand(buildsListCmd)
 	buildsCmd.AddCommand(buildsLogsCmd)
 	buildsCmd.AddCommand(buildsCancelCmd)
 
-	buildsListCmd.Flags().IntVarP(&buildsListLimit, "limit", "n", 10, "number of builds to show")
-	buildsLogsCmd.Flags().BoolVarP(&buildsLogsFollow, "follow", "f", false, "follow logs (stream)")
+	return buildsCmd
 }
 
 func runBuildsList(cmd *cobra.Command, args []string) error {

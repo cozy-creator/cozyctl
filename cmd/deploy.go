@@ -17,10 +17,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var deployCmd = &cobra.Command{
-	Use:   "deploy [path]",
-	Short: "Deploy a project to Cozy",
-	Long: `Deploy a Python project to the Cozy platform.
+var (
+	deployDeployment string
+	deployPush       bool
+	deployDryRun     bool
+)
+
+func DeployCmd() *cobra.Command {
+	deployCmd := &cobra.Command{
+		Use:   "deploy [path]",
+		Short: "Deploy a project to Cozy",
+		Long: `Deploy a Python project to the Cozy platform.
 
 The project must have a pyproject.toml with [tool.cozy] configuration.
 
@@ -28,20 +35,15 @@ Example:
   cozy deploy .
   cozy deploy ./my-project
   cozy deploy --deployment my-model ./my-project`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runDeploy,
-}
+		Args: cobra.MaximumNArgs(1),
+		RunE: runDeploy,
+	}
 
-var (
-	deployDeployment string
-	deployPush       bool
-	deployDryRun     bool
-)
-
-func init() {
 	deployCmd.Flags().StringVar(&deployDeployment, "deployment", "", "deployment name (defaults to project name)")
 	deployCmd.Flags().BoolVar(&deployPush, "push", true, "push image to registry")
 	deployCmd.Flags().BoolVar(&deployDryRun, "dry-run", false, "validate only, don't build")
+
+	return deployCmd
 }
 
 func runDeploy(cmd *cobra.Command, args []string) error {

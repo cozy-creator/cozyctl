@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/cozy-creator/cozy-cli/cmd/auth"
 	"github.com/cozy-creator/cozy-cli/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -40,9 +41,9 @@ Commands:
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.cozy/config.yaml)")
 
-	rootCmd.AddCommand(AuthCmd())
-	rootCmd.AddCommand(deployCmd)
-	rootCmd.AddCommand(buildsCmd)
+	rootCmd.AddCommand(auth.NewAuthCmd(&cfgFile))
+	rootCmd.AddCommand(DeployCmd())
+	rootCmd.AddCommand(BuildsCmd())
 
 	return rootCmd.Execute()
 }
