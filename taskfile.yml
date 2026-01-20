@@ -1,0 +1,72 @@
+version: '3'
+
+tasks:
+
+  build:
+    desc: Build the cozy CLI binary
+    cmds:
+      - go build -ldflags "-s -w" -o ./bin/cozy .
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+    generates:
+      - ./bin/cozy
+
+  install:
+    desc: Install cozy CLI to $GOPATH/bin
+    cmds:
+      - go install .
+
+  run:
+    desc: Build and run the CLI
+    deps: [build]
+    cmds:
+      - ./bin/cozy {{.CLI_ARGS}}
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -v ./...
+
+  test:coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - go test -v -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Coverage report generated at coverage.html"
+
+  lint:
+    desc: Run linters
+    cmds:
+      - go vet ./...
+      - go fmt ./...
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf ./bin
+      - rm -f coverage.out coverage.html
+
+  deps:
+    desc: Download and tidy dependencies
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  help:
+    desc: Show CLI help
+    deps: [build]
+    cmds:
+      - ./bin/cozy --help
+
+  login:
+    desc: Run login command
+    deps: [build]
+    cmds:
+      - ./bin/cozy login {{.CLI_ARGS}}
+
+  default:
+    desc: Default task - build the project
+    cmds:
+      - task: build
