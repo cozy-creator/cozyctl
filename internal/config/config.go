@@ -11,6 +11,7 @@ import (
 )
 
 // DefaultConfig points to the currently active name+profile
+// The place is ~/.cozy/default/config.yaml
 type DefaultConfig struct {
 	CurrentName    string `yaml:"current_name"`
 	CurrentProfile string `yaml:"current_profile"`
@@ -46,6 +47,8 @@ func DefaultConfigPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	// ~/.cozy/default/config.yaml
 	return filepath.Join(base, "default", "config.yaml"), nil
 }
 
@@ -77,6 +80,7 @@ func GetDefaultConfig() (*DefaultConfig, error) {
 	// Check if config exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		// Return default values if file doesn't exist
+		// TODO: If file doesn't exists, create it and continue the flow.
 		return &DefaultConfig{
 			CurrentName:    "default",
 			CurrentProfile: "default",

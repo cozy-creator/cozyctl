@@ -6,7 +6,7 @@ import (
 	"github.com/cozy-creator/cozyctl/cmd/build"
 	"github.com/cozy-creator/cozyctl/cmd/deploy"
 	"github.com/cozy-creator/cozyctl/cmd/login"
-	"github.com/cozy-creator/cozyctl/cmd/profiles"
+	profileCmd "github.com/cozy-creator/cozyctl/cmd/profiles"
 	"github.com/cozy-creator/cozyctl/cmd/use"
 	"github.com/cozy-creator/cozyctl/internal/config"
 	"github.com/spf13/cobra"
@@ -75,8 +75,7 @@ Commands:
 	rootCmd.AddCommand(login.LoginCmd())
 	rootCmd.AddCommand(deploy.DeployCmd(func() *config.ProfileConfig { return profileCfg }))
 	rootCmd.AddCommand(build.BuildCmd(func() *config.ProfileConfig { return profileCfg }))
-	rootCmd.AddCommand(profiles.ProfilesCmd())
-	rootCmd.AddCommand(use.UseCmd())
+	rootCmd.AddCommand(profileCmd.ProfileCmd())
 
 	return rootCmd.Execute()
 }

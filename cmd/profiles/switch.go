@@ -1,4 +1,4 @@
-package use
+package profileCmd
 
 import (
 	"fmt"
@@ -7,12 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// UseCmd switches the current profile
-func UseCmd() *cobra.Command {
+func SwitchCmd() *cobra.Command {
+
 	var useName string
 	var useProfile string
 
-	useCmd := &cobra.Command{
+	switchCmd := &cobra.Command{
 		Use:   "use",
 		Short: "Switch to a different profile",
 		Long: `Switch the current name and/or profile.
@@ -27,9 +27,12 @@ Examples:
   cozyctl use --profile staging
 
   # Switch only the name (keep current profile)
-  cozyctl use --name vikas`,
+  cozyctl use --name damon`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get current default config
+			// Config
 			defaultCfg, err := config.GetDefaultConfig()
 			if err != nil {
 				return err
@@ -61,8 +64,8 @@ Examples:
 		},
 	}
 
-	useCmd.Flags().StringVar(&useName, "name", "", "name to switch to")
-	useCmd.Flags().StringVar(&useProfile, "profile", "", "profile to switch to")
+	switchCmd.Flags().StringVar(&useName, "name", "", "name to switch to")
+	switchCmd.Flags().StringVar(&useProfile, "profile", "", "profile to switch to")
 
-	return useCmd
+	return switchCmd
 }
