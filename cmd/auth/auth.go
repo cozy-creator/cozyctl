@@ -1,10 +1,10 @@
-package auth
+package authCmd
 
 import (
 	"github.com/spf13/cobra"
 )
 
-func NewAuthCmd(cfgFile *string) *cobra.Command {
+func AuthCmd(cfgFile *string) *cobra.Command {
 	authCmd := &cobra.Command{
 		Use:   "auth",
 		Short: "Manage authentication",

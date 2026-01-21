@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/spf13/viper"
 )
 
 // Config holds CLI configuration
@@ -31,6 +32,31 @@ func Default() *Config {
 	}
 }
 
+// InitViper initializes viper with configuration settings
+func InitViper() error {
+	// Set config name and type
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+
+	// Add config path
+	configDir, err := ConfigDir()
+	if err != nil {
+		return err
+	}
+	viper.AddConfigPath(configDir)
+
+	// Set environment variable prefix and enable automatic env
+	viper.SetEnvPrefix("COZY")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
+
+	// Set default values
+	viper.SetDefault("hub_url", "https://api.cozy.art")
+	viper.SetDefault("builder_url", "https://builder.cozy.art")
+
+	return nil
+}
+
 // ConfigDir returns the config directory path (~/.cozy)
 func ConfigDir() (string, error) {
 	home, err := os.UserHomeDir()
@@ -51,25 +77,39 @@ func ConfigPath() (string, error) {
 
 // Load loads the config from the specified path, or the default path if empty
 func Load(path string) (*Config, error) {
-	if path == "" {
-		var err error
-		path, err = ConfigPath()
-		if err != nil {
-			return nil, err
-		}
+	// Initialize Viper
+	if err := InitViper(); err != nil {
+		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
+	// If custom path is specified, use it
+	if path != "" {
+		viper.SetConfigFile(path)
+	}
+
+	// Try to read config file
+	err := viper.ReadInConfig()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config file not found: %s (run 'cozy login' first)", path)
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found, return error
+			configPath, _ := ConfigPath()
+			return nil, fmt.Errorf("config file not found: %s (run 'cozyctl login' first)", configPath)
 		}
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	cfg := Default()
-	if err := yaml.Unmarshal(data, cfg); err != nil {
+	// Unmarshal config into struct
+	cfg := &Config{}
+	if err := viper.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	// If values are still empty, apply defaults (environment variables might override)
+	if cfg.HubURL == "" {
+		cfg.HubURL = viper.GetString("hub_url")
+	}
+	if cfg.BuilderURL == "" {
+		cfg.BuilderURL = viper.GetString("builder_url")
 	}
 
 	return cfg, nil
@@ -77,6 +117,12 @@ func Load(path string) (*Config, error) {
 
 // Save saves the config to the specified path, or the default path if empty
 func Save(cfg *Config, path string) error {
+	// Initialize Viper
+	if err := InitViper(); err != nil {
+		return err
+	}
+
+	// Determine the config path
 	if path == "" {
 		var err error
 		path, err = ConfigPath()
@@ -91,13 +137,30 @@ func Save(cfg *Config, path string) error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to serialize config: %w", err)
+	// Set config values in Viper
+	viper.Set("hub_url", cfg.HubURL)
+	viper.Set("builder_url", cfg.BuilderURL)
+	viper.Set("tenant_id", cfg.TenantID)
+	viper.Set("token", cfg.Token)
+
+	// Set the config file path
+	viper.SetConfigFile(path)
+
+	// Write config file
+	if err := viper.WriteConfig(); err != nil {
+		// If file doesn't exist, use SafeWriteConfig
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			if err := viper.SafeWriteConfig(); err != nil {
+				return fmt.Errorf("failed to write config: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to write config: %w", err)
+		}
 	}
 
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+	// Ensure correct file permissions (0600)
+	if err := os.Chmod(path, 0600); err != nil {
+		return fmt.Errorf("failed to set config file permissions: %w", err)
 	}
 
 	return nil

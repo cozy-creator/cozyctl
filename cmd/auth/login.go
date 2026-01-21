@@ -1,4 +1,4 @@
-package auth
+package authCmd
 
 import (
 	authInternal "github.com/cozy-creator/cozyctl/internal/auth"
