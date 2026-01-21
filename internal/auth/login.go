@@ -1,4 +1,4 @@
-package auth
+package login
 
 import (
 	"bufio"
@@ -18,7 +18,9 @@ type TenantInfo struct {
 	Name string `json:"name"`
 }
 
-func RunLogin(apiKey, hubURL, builderURL, cfgPath string) error {
+// RunLogin handles the login flow with name and profile
+func RunLogin(apiKey, hubURL, builderURL, tenantID, name, profile string) error {
+	// Get API key from various sources
 	if apiKey == "" {
 		apiKey = os.Getenv("COZY_API_KEY")
 	}
@@ -30,6 +32,25 @@ func RunLogin(apiKey, hubURL, builderURL, cfgPath string) error {
 		}
 	}
 
+	// Set defaults for name and profile
+	if name == "" {
+		name = "default"
+	}
+	if profile == "" {
+		profile = "default"
+	}
+
+	// Check if profile already exists
+	if config.ProfileExists(name, profile) {
+		overwrite, err := config.PromptOverwrite(name, profile)
+		if err != nil {
+			return err
+		}
+		if !overwrite {
+			return fmt.Errorf("login cancelled")
+		}
+	}
+
 	fmt.Println("Authenticating...")
 
 	// Validate the API key with cozy-hub
@@ -38,21 +59,82 @@ func RunLogin(apiKey, hubURL, builderURL, cfgPath string) error {
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 
-	// Save config
-	cfg := &config.Config{
-		HubURL:     hubURL,
-		BuilderURL: builderURL,
-		TenantID:   tenant.ID,
-		Token:      apiKey,
+	// Use provided tenant ID or the one from validation
+	if tenantID == "" {
+		tenantID = tenant.ID
 	}
 
-	if err := config.Save(cfg, cfgPath); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	// Create profile config
+	profileCfg := &config.ProfileConfig{
+		CurrentName:    name,
+		CurrentProfile: profile,
+		Config: &config.ConfigData{
+			HubURL:     hubURL,
+			BuilderURL: builderURL,
+			TenantID:   tenantID,
+			Token:      apiKey,
+		},
 	}
 
-	configPath, _ := config.ConfigPath()
+	// Save profile config
+	if err := config.SaveProfileConfig(name, profile, profileCfg); err != nil {
+		return fmt.Errorf("failed to save profile config: %w", err)
+	}
+
+	// Update default pointer to this profile
+	if err := config.SaveDefaultConfig(name, profile); err != nil {
+		return fmt.Errorf("failed to save default config: %w", err)
+	}
+
+	configPath, _ := config.ProfileConfigPath(name, profile)
 	fmt.Printf("Logged in as %s (tenant: %s)\n", tenant.Name, tenant.ID)
-	fmt.Printf("Config saved to %s\n", configPath)
+	fmt.Printf("Profile '%s/%s' saved to %s\n", name, profile, configPath)
+	fmt.Printf("Set as current profile\n")
+
+	return nil
+}
+
+// ImportConfig imports a config file into a profile
+func ImportConfig(sourceFile, name, profile string) error {
+	// Set defaults for name and profile
+	if name == "" {
+		name = "default"
+	}
+	if profile == "" {
+		profile = "default"
+	}
+
+	// Check if profile already exists
+	if config.ProfileExists(name, profile) {
+		overwrite, err := config.PromptOverwrite(name, profile)
+		if err != nil {
+			return err
+		}
+		if !overwrite {
+			return fmt.Errorf("import cancelled")
+		}
+	}
+
+	// Import the config file
+	profileCfg, err := config.ImportConfigFile(sourceFile, name, profile)
+	if err != nil {
+		return err
+	}
+
+	// Save the imported config
+	if err := config.SaveProfileConfig(name, profile, profileCfg); err != nil {
+		return fmt.Errorf("failed to save imported config: %w", err)
+	}
+
+	// Update default pointer to this profile
+	if err := config.SaveDefaultConfig(name, profile); err != nil {
+		return fmt.Errorf("failed to save default config: %w", err)
+	}
+
+	configPath, _ := config.ProfileConfigPath(name, profile)
+	fmt.Printf("Config imported to profile '%s/%s' (%s)\n", name, profile, configPath)
+	fmt.Printf("Set as current profile\n")
+
 	return nil
 }
 

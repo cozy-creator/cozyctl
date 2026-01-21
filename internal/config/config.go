@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,56 +10,29 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config holds CLI configuration
-type Config struct {
-	// HubURL is the cozy-hub API URL for authentication
-	HubURL string `yaml:"hub_url"`
+// DefaultConfig points to the currently active name+profile
+type DefaultConfig struct {
+	CurrentName    string `yaml:"current_name"`
+	CurrentProfile string `yaml:"current_profile"`
+}
 
-	// BuilderURL is the gen-builder API URL for builds
+// ProfileConfig holds the complete configuration for a name+profile
+type ProfileConfig struct {
+	CurrentName    string      `yaml:"current_name"`
+	CurrentProfile string      `yaml:"current_profile"`
+	Config         *ConfigData `yaml:"config"`
+}
+
+// ConfigData holds the actual configuration values
+type ConfigData struct {
+	HubURL     string `yaml:"hub_url"`
 	BuilderURL string `yaml:"builder_url"`
-
-	// TenantID is the authenticated tenant ID
-	TenantID string `yaml:"tenant_id"`
-
-	// Token is the API token from login
-	Token string `yaml:"token"`
+	TenantID   string `yaml:"tenant_id"`
+	Token      string `yaml:"token"`
 }
 
-// Default returns a config with default values
-func Default() *Config {
-	return &Config{
-		HubURL:     "https://api.cozy.art",
-		BuilderURL: "https://builder.cozy.art",
-	}
-}
-
-// InitViper initializes viper with configuration settings
-func InitViper() error {
-	// Set config name and type
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-
-	// Add config path
-	configDir, err := ConfigDir()
-	if err != nil {
-		return err
-	}
-	viper.AddConfigPath(configDir)
-
-	// Set environment variable prefix and enable automatic env
-	viper.SetEnvPrefix("COZY")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv()
-
-	// Set default values
-	viper.SetDefault("hub_url", "https://api.cozy.art")
-	viper.SetDefault("builder_url", "https://builder.cozy.art")
-
-	return nil
-}
-
-// ConfigDir returns the config directory path (~/.cozy)
-func ConfigDir() (string, error) {
+// BaseDir returns the base config directory (~/.cozy)
+func BaseDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
@@ -66,113 +40,362 @@ func ConfigDir() (string, error) {
 	return filepath.Join(home, ".cozy"), nil
 }
 
-// ConfigPath returns the config file path (~/.cozy/config.yaml)
-func ConfigPath() (string, error) {
-	dir, err := ConfigDir()
+// DefaultConfigPath returns the path to the default pointer config
+func DefaultConfigPath() (string, error) {
+	base, err := BaseDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "default", "config.yaml"), nil
+}
+
+// ProfileDir returns the directory for a name+profile
+func ProfileDir(name, profile string) (string, error) {
+	base, err := BaseDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, name, profile), nil
+}
+
+// ProfileConfigPath returns the config file path for a name+profile
+func ProfileConfigPath(name, profile string) (string, error) {
+	dir, err := ProfileDir(name, profile)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, "config.yaml"), nil
 }
 
-// Load loads the config from the specified path, or the default path if empty
-func Load(path string) (*Config, error) {
-	// Initialize Viper
-	if err := InitViper(); err != nil {
+// GetDefaultConfig reads the default pointer config
+func GetDefaultConfig() (*DefaultConfig, error) {
+	configPath, err := DefaultConfigPath()
+	if err != nil {
 		return nil, err
 	}
 
-	// If custom path is specified, use it
-	if path != "" {
-		viper.SetConfigFile(path)
+	// Check if config exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Return default values if file doesn't exist
+		return &DefaultConfig{
+			CurrentName:    "default",
+			CurrentProfile: "default",
+		}, nil
 	}
 
-	// Try to read config file
-	err := viper.ReadInConfig()
-	if err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found, return error
-			configPath, _ := ConfigPath()
-			return nil, fmt.Errorf("config file not found: %s (run 'cozyctl login' first)", configPath)
-		}
-		return nil, fmt.Errorf("failed to read config: %w", err)
+	// Create Viper instance
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read default config: %w", err)
 	}
 
-	// Unmarshal config into struct
-	cfg := &Config{}
-	if err := viper.Unmarshal(cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
+	cfg := &DefaultConfig{}
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse default config: %w", err)
 	}
 
-	// If values are still empty, apply defaults (environment variables might override)
-	if cfg.HubURL == "" {
-		cfg.HubURL = viper.GetString("hub_url")
+	// Set defaults if empty
+	if cfg.CurrentName == "" {
+		cfg.CurrentName = "default"
 	}
-	if cfg.BuilderURL == "" {
-		cfg.BuilderURL = viper.GetString("builder_url")
+	if cfg.CurrentProfile == "" {
+		cfg.CurrentProfile = "default"
 	}
 
 	return cfg, nil
 }
 
-// Save saves the config to the specified path, or the default path if empty
-func Save(cfg *Config, path string) error {
-	// Initialize Viper
-	if err := InitViper(); err != nil {
+// SaveDefaultConfig saves the default pointer config
+func SaveDefaultConfig(name, profile string) error {
+	configPath, err := DefaultConfigPath()
+	if err != nil {
 		return err
 	}
 
-	// Determine the config path
-	if path == "" {
-		var err error
-		path, err = ConfigPath()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Ensure config directory exists
-	dir := filepath.Dir(path)
+	// Ensure directory exists
+	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return fmt.Errorf("failed to create default config directory: %w", err)
 	}
 
-	// Set config values in Viper
-	viper.Set("hub_url", cfg.HubURL)
-	viper.Set("builder_url", cfg.BuilderURL)
-	viper.Set("tenant_id", cfg.TenantID)
-	viper.Set("token", cfg.Token)
+	// Create Viper instance
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
 
-	// Set the config file path
-	viper.SetConfigFile(path)
+	// Set values
+	v.Set("current_name", name)
+	v.Set("current_profile", profile)
 
-	// Write config file
-	if err := viper.WriteConfig(); err != nil {
-		// If file doesn't exist, use SafeWriteConfig
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			if err := viper.SafeWriteConfig(); err != nil {
-				return fmt.Errorf("failed to write config: %w", err)
+	// Write config
+	if err := v.SafeWriteConfig(); err != nil {
+		// If file exists, use WriteConfig
+		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
+			if err := v.WriteConfig(); err != nil {
+				return fmt.Errorf("failed to write default config: %w", err)
 			}
 		} else {
-			return fmt.Errorf("failed to write config: %w", err)
+			return fmt.Errorf("failed to write default config: %w", err)
 		}
 	}
 
-	// Ensure correct file permissions (0600)
-	if err := os.Chmod(path, 0600); err != nil {
+	// Ensure correct permissions
+	if err := os.Chmod(configPath, 0600); err != nil {
 		return fmt.Errorf("failed to set config file permissions: %w", err)
 	}
 
 	return nil
 }
 
+// GetProfileConfig reads a profile config
+func GetProfileConfig(name, profile string) (*ProfileConfig, error) {
+	configPath, err := ProfileConfigPath(name, profile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if config exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("profile '%s/%s' not found (run 'cozyctl login --name %s --profile %s' first)", name, profile, name, profile)
+	}
+
+	// Create Viper instance
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+
+	// Set environment variable support
+	v.SetEnvPrefix("COZY")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+
+	// Set defaults
+	v.SetDefault("config.hub_url", "https://api.cozy.art")
+	v.SetDefault("config.builder_url", "https://builder.cozy.art")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read profile config: %w", err)
+	}
+
+	cfg := &ProfileConfig{}
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse profile config: %w", err)
+	}
+
+	// Apply environment variable overrides
+	if cfg.Config != nil {
+		if v.IsSet("hub_url") {
+			cfg.Config.HubURL = v.GetString("hub_url")
+		}
+		if v.IsSet("builder_url") {
+			cfg.Config.BuilderURL = v.GetString("builder_url")
+		}
+		if v.IsSet("token") {
+			cfg.Config.Token = v.GetString("token")
+		}
+		if v.IsSet("tenant_id") {
+			cfg.Config.TenantID = v.GetString("tenant_id")
+		}
+	}
+
+	return cfg, nil
+}
+
+// SaveProfileConfig saves a profile config
+func SaveProfileConfig(name, profile string, cfg *ProfileConfig) error {
+	configPath, err := ProfileConfigPath(name, profile)
+	if err != nil {
+		return err
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(configPath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("failed to create profile directory: %w", err)
+	}
+
+	// Create Viper instance
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+
+	// Set values
+	v.Set("current_name", cfg.CurrentName)
+	v.Set("current_profile", cfg.CurrentProfile)
+	if cfg.Config != nil {
+		v.Set("config.hub_url", cfg.Config.HubURL)
+		v.Set("config.builder_url", cfg.Config.BuilderURL)
+		v.Set("config.tenant_id", cfg.Config.TenantID)
+		v.Set("config.token", cfg.Config.Token)
+	}
+
+	// Write config
+	if err := v.SafeWriteConfig(); err != nil {
+		// If file exists, use WriteConfig
+		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
+			if err := v.WriteConfig(); err != nil {
+				return fmt.Errorf("failed to write profile config: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to write profile config: %w", err)
+		}
+	}
+
+	// Ensure correct permissions
+	if err := os.Chmod(configPath, 0600); err != nil {
+		return fmt.Errorf("failed to set config file permissions: %w", err)
+	}
+
+	return nil
+}
+
+// ProfileExists checks if a profile exists
+func ProfileExists(name, profile string) bool {
+	configPath, err := ProfileConfigPath(name, profile)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(configPath)
+	return err == nil
+}
+
+// ListAllProfiles scans the directory structure and returns all profiles
+func ListAllProfiles() ([]struct{ Name, Profile string }, error) {
+	base, err := BaseDir()
+	if err != nil {
+		return nil, err
+	}
+
+	var profiles []struct{ Name, Profile string }
+
+	// Read all name directories
+	nameEntries, err := os.ReadDir(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return profiles, nil
+		}
+		return nil, fmt.Errorf("failed to read config directory: %w", err)
+	}
+
+	for _, nameEntry := range nameEntries {
+		if !nameEntry.IsDir() || nameEntry.Name() == "default" {
+			continue // Skip the default pointer directory
+		}
+
+		namePath := filepath.Join(base, nameEntry.Name())
+		profileEntries, err := os.ReadDir(namePath)
+		if err != nil {
+			continue // Skip directories we can't read
+		}
+
+		for _, profileEntry := range profileEntries {
+			if !profileEntry.IsDir() {
+				continue
+			}
+
+			// Check if config.yaml exists
+			configPath := filepath.Join(namePath, profileEntry.Name(), "config.yaml")
+			if _, err := os.Stat(configPath); err == nil {
+				profiles = append(profiles, struct{ Name, Profile string }{
+					Name:    nameEntry.Name(),
+					Profile: profileEntry.Name(),
+				})
+			}
+		}
+	}
+
+	return profiles, nil
+}
+
+// DeleteProfile removes a profile directory
+func DeleteProfile(name, profile string) error {
+	// Prevent deletion of default/default
+	if name == "default" && profile == "default" {
+		return fmt.Errorf("cannot delete default/default profile")
+	}
+
+	dir, err := ProfileDir(name, profile)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return fmt.Errorf("profile '%s/%s' does not exist", name, profile)
+	}
+
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("failed to delete profile: %w", err)
+	}
+
+	return nil
+}
+
+// ImportConfigFile imports an external config file
+func ImportConfigFile(sourceFile, name, profile string) (*ProfileConfig, error) {
+	// Create Viper instance to read source file
+	v := viper.New()
+	v.SetConfigFile(sourceFile)
+	v.SetConfigType("yaml")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Try to unmarshal as ConfigData first (flat structure)
+	configData := &ConfigData{}
+	if err := v.Unmarshal(configData); err == nil && configData.Token != "" {
+		// Successfully unmarshaled as flat config
+		return &ProfileConfig{
+			CurrentName:    name,
+			CurrentProfile: profile,
+			Config:         configData,
+		}, nil
+	}
+
+	// Try to unmarshal as ProfileConfig (nested structure)
+	profileCfg := &ProfileConfig{}
+	if err := v.Unmarshal(profileCfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Update name and profile
+	profileCfg.CurrentName = name
+	profileCfg.CurrentProfile = profile
+
+	return profileCfg, nil
+}
+
 // Validate checks that required fields are set
-func (c *Config) Validate() error {
+func (c *ConfigData) Validate() error {
 	if c.Token == "" {
-		return fmt.Errorf("not logged in (run 'cozy login' first)")
+		return fmt.Errorf("not logged in (run 'cozyctl login' first)")
 	}
 	if c.TenantID == "" {
 		return fmt.Errorf("tenant_id not set in config")
 	}
 	return nil
+}
+
+// DefaultConfigData returns default config values
+func DefaultConfigData() *ConfigData {
+	return &ConfigData{
+		HubURL:     "https://api.cozy.art",
+		BuilderURL: "https://builder.cozy.art",
+	}
+}
+
+// PromptOverwrite prompts user to confirm overwriting an existing profile
+func PromptOverwrite(name, profile string) (bool, error) {
+	fmt.Printf("Profile '%s/%s' already exists. Overwrite? [y/N]: ", name, profile)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false, fmt.Errorf("failed to read input: %w", err)
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+	return response == "y" || response == "yes", nil
 }

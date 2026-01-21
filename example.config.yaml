@@ -1,0 +1,36 @@
+# Example cozyctl Configuration File
+#
+# This is an example of what a profile config file looks like.
+# Profile configs are stored at: ~/.cozy/{name}/{profile}/config.yaml
+# cozyctl login --name {name} --profile {profile} --api-key {key}
+# cozyctl login --name myname --profile myprofile --config-file example.config.yaml
+
+current_name: briheet
+current_profile: dev
+
+# Configs
+config:
+  # Cozy Hub API URL - for authentication and model management
+  hub_url: https://api.cozy.art
+
+  # Gen-Builder API URL - for deployments and builds
+  builder_url: https://builder.cozy.art
+
+  # Your tenant ID (automatically detected during login)
+  tenant_id: tenant-abc123xyz
+
+  # Your API authentication token
+  token: sk_live_your_api_key_here
+
+# Multiple Profile Setup Example
+# ===============================
+# You typically create multiple profiles for different environments:
+#
+# ~/.cozy/briheet/dev/config.yaml       - Development environment
+# ~/.cozy/briheet/staging/config.yaml   - Staging environment
+# ~/.cozy/briheet/prod/config.yaml      - Production environment
+# ~/.cozy/work/prod/config.yaml         - Work account production
+#
+# Switch between profiles (This needs to be implemented):
+# cozyctl use --name briheet --profile prod
+# cozyctl use --profile staging  # Keep current name

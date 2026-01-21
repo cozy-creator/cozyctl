@@ -1,4 +1,4 @@
-package cmd
+package build
 
 import (
 	"bufio"
@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/cozy-creator/cozyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +20,7 @@ var (
 	buildsLogsFollow bool
 )
 
-func BuildsCmd() *cobra.Command {
+func BuildCmd(getConfig func() *config.ProfileConfig) *cobra.Command {
 	buildsCmd := &cobra.Command{
 		Use:   "builds",
 		Short: "Manage builds",
@@ -34,21 +35,27 @@ Subcommands:
 	buildsListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List recent builds",
-		RunE:  runBuildsList,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runBuildsList(cmd, args, getConfig())
+		},
 	}
 
 	buildsLogsCmd := &cobra.Command{
 		Use:   "logs <build_id>",
 		Short: "View build logs",
 		Args:  cobra.ExactArgs(1),
-		RunE:  runBuildsLogs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runBuildsLogs(cmd, args, getConfig())
+		},
 	}
 
 	buildsCancelCmd := &cobra.Command{
 		Use:   "cancel <build_id>",
 		Short: "Cancel a running build",
 		Args:  cobra.ExactArgs(1),
-		RunE:  runBuildsCancel,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runBuildsCancel(cmd, args, getConfig())
+		},
 	}
 
 	buildsListCmd.Flags().IntVarP(&buildsListLimit, "limit", "n", 10, "number of builds to show")
@@ -61,17 +68,17 @@ Subcommands:
 	return buildsCmd
 }
 
-func runBuildsList(cmd *cobra.Command, args []string) error {
-	if err := cfg.Validate(); err != nil {
+func runBuildsList(cmd *cobra.Command, args []string, profileCfg *config.ProfileConfig) error {
+	if err := profileCfg.Config.Validate(); err != nil {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/v1/builds?limit=%d", strings.TrimRight(cfg.BuilderURL, "/"), buildsListLimit)
+	url := fmt.Sprintf("%s/v1/builds?limit=%d", strings.TrimRight(profileCfg.Config.BuilderURL, "/"), buildsListLimit)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Bearer "+profileCfg.Config.Token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -114,8 +121,8 @@ type buildInfo struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-func runBuildsLogs(cmd *cobra.Command, args []string) error {
-	if err := cfg.Validate(); err != nil {
+func runBuildsLogs(cmd *cobra.Command, args []string, profileCfg *config.ProfileConfig) error {
+	if err := profileCfg.Config.Validate(); err != nil {
 		return err
 	}
 
@@ -125,12 +132,12 @@ func runBuildsLogs(cmd *cobra.Command, args []string) error {
 		follow = "?follow=true"
 	}
 
-	url := fmt.Sprintf("%s/v1/builds/%s/logs%s", strings.TrimRight(cfg.BuilderURL, "/"), buildID, follow)
+	url := fmt.Sprintf("%s/v1/builds/%s/logs%s", strings.TrimRight(profileCfg.Config.BuilderURL, "/"), buildID, follow)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Bearer "+profileCfg.Config.Token)
 	if buildsLogsFollow {
 		req.Header.Set("Accept", "text/event-stream")
 	}
@@ -173,18 +180,18 @@ func readSSELogsBuilds(reader io.Reader) error {
 	return scanner.Err()
 }
 
-func runBuildsCancel(cmd *cobra.Command, args []string) error {
-	if err := cfg.Validate(); err != nil {
+func runBuildsCancel(cmd *cobra.Command, args []string, profileCfg *config.ProfileConfig) error {
+	if err := profileCfg.Config.Validate(); err != nil {
 		return err
 	}
 
 	buildID := args[0]
-	url := fmt.Sprintf("%s/v1/builds/%s/cancel", strings.TrimRight(cfg.BuilderURL, "/"), buildID)
+	url := fmt.Sprintf("%s/v1/builds/%s/cancel", strings.TrimRight(profileCfg.Config.BuilderURL, "/"), buildID)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Bearer "+profileCfg.Config.Token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

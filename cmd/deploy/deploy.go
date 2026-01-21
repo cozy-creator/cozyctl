@@ -1,4 +1,4 @@
-package cmd
+package deploy
 
 import (
 	"archive/tar"
@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cozy-creator/cozyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,7 @@ var (
 	deployDryRun     bool
 )
 
-func DeployCmd() *cobra.Command {
+func DeployCmd(getConfig func() *config.ProfileConfig) *cobra.Command {
 	deployCmd := &cobra.Command{
 		Use:   "deploy [path]",
 		Short: "Deploy a project to Cozy",
@@ -36,7 +37,9 @@ Example:
   cozy deploy ./my-project
   cozy deploy --deployment my-model ./my-project`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: runDeploy,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDeploy(cmd, args, getConfig())
+		},
 	}
 
 	deployCmd.Flags().StringVar(&deployDeployment, "deployment", "", "deployment name (defaults to project name)")
@@ -46,8 +49,8 @@ Example:
 	return deployCmd
 }
 
-func runDeploy(cmd *cobra.Command, args []string) error {
-	if err := cfg.Validate(); err != nil {
+func runDeploy(cmd *cobra.Command, args []string, profileCfg *config.ProfileConfig) error {
+	if err := profileCfg.Config.Validate(); err != nil {
 		return err
 	}
 
@@ -76,7 +79,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	defer os.Remove(archivePath)
 
 	// Upload and trigger build
-	fmt.Printf("Uploading to %s...\n", cfg.BuilderURL)
+	fmt.Printf("Uploading to %s...\n", profileCfg.Config.BuilderURL)
 	buildID, err := uploadAndTriggerBuild(archivePath, absPath)
 	if err != nil {
 		return err
@@ -224,7 +227,7 @@ func uploadAndTriggerBuild(archivePath, sourceDir string) (string, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	_ = writer.WriteField("tenant_id", cfg.TenantID)
+	_ = writer.WriteField("tenant_id", profileCfg.Config.TenantID)
 	if deployDeployment != "" {
 		_ = writer.WriteField("deployment", deployDeployment)
 	} else {
@@ -255,13 +258,13 @@ func uploadAndTriggerBuild(archivePath, sourceDir string) (string, error) {
 		return "", err
 	}
 
-	url := strings.TrimRight(cfg.BuilderURL, "/") + "/v1/builds"
+	url := strings.TrimRight(profileCfg.Config.BuilderURL, "/") + "/v1/builds"
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Bearer "+profileCfg.Config.Token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -285,12 +288,12 @@ func uploadAndTriggerBuild(archivePath, sourceDir string) (string, error) {
 }
 
 func streamBuildLogs(buildID string) error {
-	url := fmt.Sprintf("%s/v1/builds/%s/logs?follow=true", strings.TrimRight(cfg.BuilderURL, "/"), buildID)
+	url := fmt.Sprintf("%s/v1/builds/%s/logs?follow=true", strings.TrimRight(profileCfg.Config.BuilderURL, "/"), buildID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Bearer "+profileCfg.Config.Token)
 	req.Header.Set("Accept", "text/event-stream")
 
 	resp, err := http.DefaultClient.Do(req)
