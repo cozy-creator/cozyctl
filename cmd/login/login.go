@@ -1,7 +1,7 @@
-package login
+package loginCmd
 
 import (
-	authInternal "github.com/cozy-creator/cozyctl/internal/auth"
+	"github.com/cozy-creator/cozyctl/internal/login"
 	"github.com/spf13/cobra"
 )
 
@@ -41,11 +41,11 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Handle config file import
 			if loginConfigFile != "" {
-				return authInternal.ImportConfig(loginConfigFile, loginName, loginProfile)
+				return login.ImportConfig(loginConfigFile, loginName, loginProfile)
 			}
 
 			// Normal login flow
-			return authInternal.RunLogin(
+			return login.RunLogin(
 				loginAPIKey,
 				loginHubURL,
 				loginBuilderURL,

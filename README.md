@@ -1,4 +1,4 @@
-# cozyctl
+# Cozyctl
 
 A command-line tool for deploying and managing machine learning functions on the Cozy platform.
 
@@ -66,18 +66,18 @@ cozyctl login --name briheet --profile prod --config-file ./prod-config.yaml
 
 ```bash
 # List all profiles (current profile marked with *)
-cozyctl profiles
+cozyctl profile
 
 # Show current profile
-cozyctl current
+cozyctl profile current
 
 # Switch profiles
-cozyctl use --name briheet --profile prod
-cozyctl use --profile staging              # Keep current name, switch profile
-cozyctl use --name work                    # Switch name, keep current profile
+cozyctl profile switch --name briheet --profile prod
+cozyctl profile switch --profile staging              # Keep current name, switch profile
+cozyctl profile switch --name work                    # Switch name, keep current profile
 
 # Delete a profile
-cozyctl delete --name briheet --profile staging
+cozyctl profile delete --name briheet --profile staging
 ```
 
 ### Using Profiles
@@ -125,33 +125,14 @@ Authentication with Cozy platform
 cozyctl login [--name NAME] [--profile PROFILE] [--api-key KEY]
 cozyctl login --config-file PATH
 ```
-
 Authenticate with API key or import config file into a name/profile combination.
-
-Additional auth commands:
-- `logout` - ⏳ Coming soon
-- `whoami` - ⏳ Coming soon
 
 ### 2. Deploy
 Deploy projects to Cozy
-
-```bash
-cozyctl deploy [PATH]
-  --deployment NAME       # Custom deployment name
-  --push                  # Push image to registry (default: true)
-  --dry-run              # Validate only, don't build
-```
-
 Validates projects with `pyproject.toml`, creates tarball, uploads to Gen-Builder, and streams build logs.
 
 ### 3. Builds
 Manage builds
-
-```bash
-cozyctl builds list [--limit N]
-cozyctl builds logs BUILD_ID [--follow]
-cozyctl builds cancel BUILD_ID
-```
 
 - `list` - List recent builds with status
 - `logs` - View build logs (supports streaming with `--follow`)
@@ -161,10 +142,10 @@ cozyctl builds cancel BUILD_ID
 Manage configuration profiles
 
 ```bash
-cozyctl profiles                           # List all profiles
-cozyctl use --name NAME --profile PROFILE  # Switch profile
-cozyctl current                            # Show current profile
-cozyctl delete --name NAME --profile PROFILE
+cozyctl profile                           # List all profiles
+cozyctl profile switch --name NAME --profile PROFILE  # Switch profile
+cozyctl profile current                            # Show current profile
+cozyctl profile delete --name NAME --profile PROFILE
 ```
 
 ### 5. Job
