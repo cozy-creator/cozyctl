@@ -79,12 +79,15 @@ func GetDefaultConfig() (*DefaultConfig, error) {
 
 	// Check if config exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Return default values if file doesn't exist
-		// TODO: If file doesn't exists, create it and continue the flow.
-		return &DefaultConfig{
+		// Create default config file
+		defaults := &DefaultConfig{
 			CurrentName:    "default",
 			CurrentProfile: "default",
-		}, nil
+		}
+		if err := SaveDefaultConfig(defaults.CurrentName, defaults.CurrentProfile); err != nil {
+			return nil, fmt.Errorf("failed to create default config: %w", err)
+		}
+		return defaults, nil
 	}
 
 	// Create Viper instance

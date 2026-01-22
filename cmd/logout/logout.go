@@ -1,7 +1,7 @@
 package logoutCmd
 
 import (
-	"github.com/cozy-creator/cozyctl/internal/config"
+	"github.com/cozy-creator/cozyctl/internal/logout"
 	"github.com/spf13/cobra"
 )
 
@@ -25,10 +25,15 @@ Examples:
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// Get the default config
-			_, err := config.GetDefaultConfig()
-			if err != nil {
-				return nil
+			if name == "" {
+				// This means the person wants to logout the current default
+				// Get the default and clear the token in the config. Writes persist to disk hence do it.
+				return logout.DefaultLogout()
+			}
+
+			if len(profile) == 0 {
+				// This means get all the configs in the directory of the name we have got and clear the token.
+				return logout.NameOnlyLogout()
 			}
 
 			return nil
