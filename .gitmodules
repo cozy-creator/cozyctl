@@ -1,0 +1,3 @@
+[submodule "gen-builder"]
+	path = gen-builder
+	url = git@github.com:cozy-creator/gen-builder.git
