@@ -1,3 +1,4 @@
 *.exe
 /cozy
 .cozy/
+bin

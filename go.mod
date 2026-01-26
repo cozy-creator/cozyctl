@@ -5,6 +5,8 @@ go 1.24.0
 toolchain go1.24.12
 
 require (
+	github.com/BurntSushi/toml v1.6.0
+	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.21.0
 	golang.org/x/term v0.39.0

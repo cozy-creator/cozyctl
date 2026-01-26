@@ -27,7 +27,7 @@ func Execute() error {
 machine learning functions on the Cozy platform.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip config loading for these commands
-			skipCommands := []string{"login", "profiles", "use", "current", "delete"}
+			skipCommands := []string{"login", "profiles", "use", "current", "delete", "build"}
 			isTrue := slices.Contains(skipCommands, cmd.Name())
 			if isTrue {
 				return nil

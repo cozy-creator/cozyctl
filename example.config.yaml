@@ -22,6 +22,9 @@ config:
   # Your API authentication token
   token: sk_live_your_api_key_here
 
+  # Github token for downloading private git modules.
+  gh_token: put_your_gh_token_here
+  
 # Multiple Profile Setup Example
 # ===============================
 # You typically create multiple profiles for different environments:
