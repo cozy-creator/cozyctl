@@ -138,7 +138,41 @@ Manage builds
 - `logs` - View build logs (supports streaming with `--follow`)
 - `cancel` - Cancel a running build
 
-### 4. Profiles
+### 4. Build
+Build Docker images locally from projects with `pyproject.toml`
+
+```bash
+cozyctl build -l -d ./path/to/project
+```
+
+#### Local Build Demo
+
+Test with the included SDXL-Turbo worker:
+
+```bash
+# Build the image
+./bin/cozyctl build -l -d ./test/config/sdxl-turbo-worker/
+
+# Download model (~7GB, one-time)
+huggingface-cli download stabilityai/sdxl-turbo --local-dir ~/models/sdxl-turbo
+
+# Run the container
+docker run \
+  -v ~/models/sdxl-turbo:/models/sdxl-turbo \
+  -v $(pwd)/test/test-output:/output \
+  -e MODEL_PATH=/models/sdxl-turbo \
+  cozy-build-sdxl-turbo-test-<build-id>:latest
+
+# View result
+open test/test-output/output.png
+```
+
+Base image auto-selected from `[tool.cozy]` config:
+- CPU: `python:3.11-slim`
+- PyTorch CPU: `cozycreator/gen-worker:cpu-torch2.9`
+- PyTorch + CUDA: `cozycreator/gen-worker:cuda12.6-torch2.9`
+
+### 5. Profiles
 Manage configuration profiles
 
 ```bash
@@ -148,11 +182,11 @@ cozyctl profile current                            # Show current profile
 cozyctl profile delete --name NAME --profile PROFILE
 ```
 
-### 5. Job
+### 6. Job
 Talks to gen-orchestrator for inference jobs
 - `submit`, `get`, `logs`, `cancel`, `list`, `download`
 
-### 6. Models
+### 7. Models
 Talks to cozy-hub for model management
 - `download`, `list`, `search`, `get`, `url`
 - `upload`, `delete` (admin only)

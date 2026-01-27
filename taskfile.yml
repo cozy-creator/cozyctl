@@ -3,15 +3,15 @@ version: '3'
 tasks:
 
   build:
-    desc: Build the cozy CLI binary
+    desc: Build the cozyctl CLI binary
     cmds:
-      - go build -ldflags "-s -w" -o ./bin/cozy .
+      - go build -ldflags "-s -w" -o ./bin/cozyctl .
     sources:
       - '**/*.go'
       - go.mod
       - go.sum
     generates:
-      - ./bin/cozy
+      - ./bin/cozyctl
 
   install:
     desc: Install cozy CLI to $GOPATH/bin
@@ -22,7 +22,7 @@ tasks:
     desc: Build and run the CLI
     deps: [build]
     cmds:
-      - ./bin/cozy {{.CLI_ARGS}}
+      - ./bin/cozyctl {{.CLI_ARGS}}
 
   test:
     desc: Run all tests
@@ -58,13 +58,13 @@ tasks:
     desc: Show CLI help
     deps: [build]
     cmds:
-      - ./bin/cozy --help
+      - ./bin/cozyctl --help
 
   login:
     desc: Run login command
     deps: [build]
     cmds:
-      - ./bin/cozy login {{.CLI_ARGS}}
+      - ./bin/cozyctl login {{.CLI_ARGS}}
 
   default:
     desc: Default task - build the project
