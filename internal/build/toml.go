@@ -15,23 +15,24 @@ type PyProjectToml struct {
 
 type ToolsCozyConfig struct {
 	DeploymentID string            `toml:"deployment-id"`
-	Name         string            `toml:"name"`
 	Python       string            `toml:"python"`
 	Pytorch      string            `toml:"pytorch"`
 	Cuda         string            `toml:"cuda"`
 	Root         string            `toml:"root"`
-	Predict      string            `toml:"predict"`
 	Environment  map[string]string `toml:"environment"`
+
+	// Custom entrypoint command (optional)
+	// If empty, defaults to "python -m gen_worker.entrypoint" for gen-worker projects
+	Entrypoint string `toml:"entrypoint"`
 }
 
 // [tool.cozy]
 // deployment-id = "my-deployment"
-// name = "worker"
 // python = "3.11"
 // pytorch = "2.5"           # Enables PyTorch base image
 // cuda = "12.6"             # Enables CUDA support
 // root = "src/app"          # Project root within tarball (optional)
-// predict = "from worker import predict; predict()"
+// entrypoint = '["custom", "entrypoint"]'  # Optional custom entrypoint
 // ```
 func getToolsCozyConfig(filepath string) (*ToolsCozyConfig, error) {
 	var config PyProjectToml

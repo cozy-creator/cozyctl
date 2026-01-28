@@ -1,151 +1,154 @@
 """
 SDXL-Turbo Image Generation Worker
 
+Demonstrates proper gen-worker SDK usage with model injection.
+
 Works on:
-- Apple Silicon (MPS) - for local testing
 - NVIDIA GPU (CUDA) - for RunPod deployment
 - CPU - fallback (slow but works)
-
-Environment variables:
-- MODEL_PATH: Path to local model (default: downloads from HuggingFace)
 """
 
+from io import BytesIO
+from typing import Annotated, Optional
+
+import msgspec
 import torch
 from diffusers import AutoPipelineForText2Image
-import os
-import base64
-from io import BytesIO
-
-# Global pipeline instance
-pipe = None
-
-# Model path - can be overridden via environment variable
-DEFAULT_MODEL = "stabilityai/sdxl-turbo"
-MODEL_PATH = os.environ.get("MODEL_PATH", DEFAULT_MODEL)
+from gen_worker import worker_function, ActionContext, ModelRef, ModelRefSource
 
 
-def get_device():
-    """Detect the best available device."""
-    if torch.cuda.is_available():
-        return "cuda"
-    elif torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
+class GenerateInput(msgspec.Struct):
+    """Input for the generate function."""
+    prompt: str
+    num_steps: int = 4
+    width: int = 512
+    height: int = 512
+    seed: Optional[int] = None
+    guidance_scale: float = 0.0  # SDXL-Turbo doesn't need guidance
 
 
-def load_model():
-    """Load SDXL-Turbo model from local path or HuggingFace."""
-    global pipe
-
-    device = get_device()
-    dtype = torch.float16 if device in ["cuda", "mps"] else torch.float32
-
-    model_source = MODEL_PATH
-    print(f"Loading model from: {model_source}")
-    print(f"Device: {device}, Dtype: {dtype}")
-
-    # Check if local path exists
-    if os.path.isdir(model_source):
-        print(f"Using local model at: {model_source}")
-        pipe = AutoPipelineForText2Image.from_pretrained(
-            model_source,
-            torch_dtype=dtype,
-            local_files_only=True,
-        )
-    else:
-        print(f"Downloading from HuggingFace: {model_source}")
-        pipe = AutoPipelineForText2Image.from_pretrained(
-            model_source,
-            torch_dtype=dtype,
-            variant="fp16" if dtype == torch.float16 else None,
-        )
-
-    pipe.to(device)
-
-    # Disable safety checker for faster inference (optional)
-    pipe.safety_checker = None
-
-    print(f"Model loaded successfully on {device}")
-    return pipe
+class GenerateOutput(msgspec.Struct):
+    """Output from the generate function."""
+    image_url: str
+    prompt: str
+    settings: dict
 
 
+class GenerateBase64Input(msgspec.Struct):
+    """Input for the generate_base64 function."""
+    prompt: str
+    num_steps: int = 4
+    width: int = 512
+    height: int = 512
+    seed: Optional[int] = None
+
+
+class GenerateBase64Output(msgspec.Struct):
+    """Output from the generate_base64 function."""
+    image_base64: str
+    prompt: str
+    settings: dict
+
+
+@worker_function()
 def generate(
-    prompt: str,
-    output_path: str = "output.png",
-    num_steps: int = 4,
-    width: int = 512,
-    height: int = 512,
-    seed: int = None,
-):
+    ctx: ActionContext,
+    payload: GenerateInput,
+    pipeline: Annotated[
+        AutoPipelineForText2Image,
+        ModelRef(ModelRefSource.DEPLOYMENT, "sdxl-turbo")
+    ],
+) -> GenerateOutput:
     """
-    Generate an image from a text prompt.
+    Generate an image from a text prompt and save to file store.
+
+    The pipeline is automatically injected by the worker runtime's model cache.
+    This avoids global mutable state and enables proper model management.
 
     Args:
-        prompt: Text description of the image to generate
-        output_path: Path to save the generated image
-        num_steps: Number of inference steps (1-4 for turbo)
-        width: Image width (default 512)
-        height: Image height (default 512)
-        seed: Random seed for reproducibility
+        ctx: Action context provided by the worker runtime
+        payload: Input payload containing prompt and generation parameters
+        pipeline: SDXL-Turbo pipeline, injected by the worker runtime
 
     Returns:
-        Path to the saved image
+        GenerateOutput containing the URL to the saved image
     """
-    global pipe
-
-    if pipe is None:
-        load_model()
-
     # Set seed for reproducibility
     generator = None
-    if seed is not None:
-        generator = torch.Generator(device=get_device()).manual_seed(seed)
+    if payload.seed is not None:
+        generator = torch.Generator(device=ctx.device).manual_seed(payload.seed)
 
-    print(f"Generating: '{prompt}'")
-    print(f"Settings: steps={num_steps}, size={width}x{height}")
-
-    image = pipe(
-        prompt=prompt,
-        num_inference_steps=num_steps,
-        guidance_scale=0.0,  # SDXL-Turbo doesn't need guidance
-        width=width,
-        height=height,
+    # Generate image using injected pipeline
+    image = pipeline(
+        prompt=payload.prompt,
+        num_inference_steps=payload.num_steps,
+        guidance_scale=payload.guidance_scale,
+        width=payload.width,
+        height=payload.height,
         generator=generator,
     ).images[0]
 
-    # Save image
-    image.save(output_path)
-    print(f"Saved to: {output_path}")
+    # Save image to file store using ctx
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
 
-    return output_path
+    # Use ctx to save bytes and get URL
+    image_url = ctx.save_bytes(
+        f"generated/{ctx.run_id}.png",
+        buffer.getvalue(),
+        "image/png",
+    )
+
+    return GenerateOutput(
+        image_url=image_url,
+        prompt=payload.prompt,
+        settings={
+            "num_steps": payload.num_steps,
+            "width": payload.width,
+            "height": payload.height,
+            "seed": payload.seed,
+            "guidance_scale": payload.guidance_scale,
+        },
+    )
 
 
+@worker_function()
 def generate_base64(
-    prompt: str,
-    num_steps: int = 4,
-    width: int = 512,
-    height: int = 512,
-    seed: int = None,
-):
+    ctx: ActionContext,
+    payload: GenerateBase64Input,
+    pipeline: Annotated[
+        AutoPipelineForText2Image,
+        ModelRef(ModelRefSource.DEPLOYMENT, "sdxl-turbo")
+    ],
+) -> GenerateBase64Output:
     """
     Generate an image and return as base64 string.
-    Useful for API responses.
+
+    Useful for API responses where direct file storage is not needed.
+
+    Args:
+        ctx: Action context provided by the worker runtime
+        payload: Input payload containing prompt and generation parameters
+        pipeline: SDXL-Turbo pipeline, injected by the worker runtime
+
+    Returns:
+        GenerateBase64Output containing the base64-encoded image
     """
-    global pipe
+    import base64
 
-    if pipe is None:
-        load_model()
-
+    # Set seed for reproducibility
     generator = None
-    if seed is not None:
-        generator = torch.Generator(device=get_device()).manual_seed(seed)
+    if payload.seed is not None:
+        generator = torch.Generator(device=ctx.device).manual_seed(payload.seed)
 
-    image = pipe(
-        prompt=prompt,
-        num_inference_steps=num_steps,
+    # Generate image using injected pipeline
+    image = pipeline(
+        prompt=payload.prompt,
+        num_inference_steps=payload.num_steps,
         guidance_scale=0.0,
-        width=width,
-        height=height,
+        width=payload.width,
+        height=payload.height,
         generator=generator,
     ).images[0]
 
@@ -154,58 +157,13 @@ def generate_base64(
     image.save(buffer, format="PNG")
     img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    return img_base64
-
-
-# RunPod serverless handler (optional)
-def handler(event):
-    """
-    RunPod serverless handler.
-
-    Input format:
-    {
-        "input": {
-            "prompt": "a beautiful sunset",
-            "num_steps": 4,
-            "width": 512,
-            "height": 512,
-            "seed": 42
-        }
-    }
-    """
-    input_data = event.get("input", {})
-
-    prompt = input_data.get("prompt", "a beautiful landscape")
-    num_steps = input_data.get("num_steps", 4)
-    width = input_data.get("width", 512)
-    height = input_data.get("height", 512)
-    seed = input_data.get("seed")
-
-    img_base64 = generate_base64(
-        prompt=prompt,
-        num_steps=num_steps,
-        width=width,
-        height=height,
-        seed=seed,
+    return GenerateBase64Output(
+        image_base64=img_base64,
+        prompt=payload.prompt,
+        settings={
+            "num_steps": payload.num_steps,
+            "width": payload.width,
+            "height": payload.height,
+            "seed": payload.seed,
+        },
     )
-
-    return {
-        "image_base64": img_base64,
-        "prompt": prompt,
-        "settings": {
-            "num_steps": num_steps,
-            "width": width,
-            "height": height,
-            "seed": seed,
-        }
-    }
-
-
-if __name__ == "__main__":
-    # Local test
-    import sys
-
-    prompt = sys.argv[1] if len(sys.argv) > 1 else "a cute robot painting a picture"
-    output = sys.argv[2] if len(sys.argv) > 2 else "output.png"
-
-    generate(prompt, output)

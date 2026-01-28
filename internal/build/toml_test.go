@@ -27,9 +27,6 @@ func TestGetToolsCozyConfig(t *testing.T) {
 		if config.DeploymentID != "sdxl-turbo-test" {
 			t.Errorf("DeploymentID = %q, want %q", config.DeploymentID, "sdxl-turbo-test")
 		}
-		if config.Name != "worker" {
-			t.Errorf("Name = %q, want %q", config.Name, "worker")
-		}
 		if config.Python != "3.11" {
 			t.Errorf("Python = %q, want %q", config.Python, "3.11")
 		}
@@ -38,9 +35,6 @@ func TestGetToolsCozyConfig(t *testing.T) {
 		}
 		if config.Cuda != "12.6" {
 			t.Errorf("Cuda = %q, want %q", config.Cuda, "12.6")
-		}
-		if config.Predict != "from worker import generate; generate('a beautiful sunset over mountains')" {
-			t.Errorf("Predict = %q, want %q", config.Predict, "from worker import generate; generate('a beautiful sunset over mountains')")
 		}
 	})
 
