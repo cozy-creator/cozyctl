@@ -13,6 +13,11 @@ type PyProjectToml struct {
 	} `toml:"tool"`
 }
 
+// FunctionConfig defines a function's requirements in pyproject.toml
+type FunctionConfig struct {
+	RequiresGPU bool `toml:"requires_gpu"`
+}
+
 type ToolsCozyConfig struct {
 	DeploymentID string            `toml:"deployment-id"`
 	Python       string            `toml:"python"`
@@ -24,17 +29,31 @@ type ToolsCozyConfig struct {
 	// Custom entrypoint command (optional)
 	// If empty, defaults to "python -m gen_worker.entrypoint" for gen-worker projects
 	Entrypoint string `toml:"entrypoint"`
+
+	// Functions defines worker functions and their requirements
+	// Example:
+	//   [tool.cozy.functions]
+	//   generate = { requires_gpu = true }
+	//   health = { requires_gpu = false }
+	Functions map[string]FunctionConfig `toml:"functions"`
 }
 
-// [tool.cozy]
-// deployment-id = "my-deployment"
-// python = "3.11"
-// pytorch = "2.5"           # Enables PyTorch base image
-// cuda = "12.6"             # Enables CUDA support
-// root = "src/app"          # Project root within tarball (optional)
-// entrypoint = '["custom", "entrypoint"]'  # Optional custom entrypoint
-// ```
-func getToolsCozyConfig(filepath string) (*ToolsCozyConfig, error) {
+// Example pyproject.toml configuration:
+//
+//	[tool.cozy]
+//	deployment-id = "my-deployment"
+//	python = "3.11"
+//	pytorch = "2.5"           # Enables PyTorch base image
+//	cuda = "12.6"             # Enables CUDA support
+//	root = "src/app"          # Project root within tarball (optional)
+//	entrypoint = '["custom", "entrypoint"]'  # Optional custom entrypoint
+//
+//	[tool.cozy.functions]
+//	generate = { requires_gpu = true }
+//	health = { requires_gpu = false }
+//
+// GetToolsCozyConfig parses pyproject.toml and returns the [tool.cozy] configuration.
+func GetToolsCozyConfig(filepath string) (*ToolsCozyConfig, error) {
 	var config PyProjectToml
 
 	// Read the file

@@ -39,7 +39,7 @@ func BuildProjectLocally(directoryPath string) error {
 	}
 
 	// Send it to parse this toml, return contents for tools.cozy so that build template data can be validated.
-	toolsCozyConfig, err := getToolsCozyConfig(filepath.Join(directoryPath, PyProjectTomlPath))
+	toolsCozyConfig, err := GetToolsCozyConfig(filepath.Join(directoryPath, PyProjectTomlPath))
 	if err != nil {
 		return err
 	}

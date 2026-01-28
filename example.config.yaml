@@ -16,6 +16,9 @@ config:
   # Gen-Builder API URL - for deployments and builds
   builder_url: https://builder.cozy.art
 
+  # Gen-Orchestrator API URL - for deployment management and worker scheduling
+  orchestrator_url: http://localhost:8090
+
   # Your tenant ID (automatically detected during login)
   tenant_id: tenant-abc123xyz
 

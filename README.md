@@ -128,17 +128,32 @@ cozyctl login --config-file PATH
 Authenticate with API key or import config file into a name/profile combination.
 
 ### 2. Deploy
-Deploy projects to Cozy
-Validates projects with `pyproject.toml`, creates tarball, uploads to Gen-Builder, and streams build logs.
+Build and register a new deployment with the orchestrator.
 
-### 3. Builds
+```bash
+cozyctl deploy ./my-project              # Build + register
+cozyctl deploy ./my-project --dry-run    # Preview without executing
+cozyctl deploy ./my-project --register=false  # Build only
+cozyctl deploy ./my-project --min-workers 2 --max-workers 10
+```
+
+### 3. Update
+Rebuild and update an existing deployment.
+
+```bash
+cozyctl update ./my-project              # Rebuild + update
+cozyctl update ./my-project --image-only # Only update image
+cozyctl update ./my-project --dry-run    # Preview without executing
+```
+
+### 4. Builds
 Manage builds
 
 - `list` - List recent builds with status
 - `logs` - View build logs (supports streaming with `--follow`)
 - `cancel` - Cancel a running build
 
-### 4. Build
+### 5. Build
 Build Docker images locally from projects with `pyproject.toml`
 
 ```bash
@@ -172,7 +187,7 @@ Base image auto-selected from `[tool.cozy]` config:
 - PyTorch CPU: `cozycreator/gen-worker:cpu-torch2.9`
 - PyTorch + CUDA: `cozycreator/gen-worker:cuda12.6-torch2.9`
 
-### 5. Profiles
+### 6. Profiles
 Manage configuration profiles
 
 ```bash
@@ -182,11 +197,40 @@ cozyctl profile current                            # Show current profile
 cozyctl profile delete --name NAME --profile PROFILE
 ```
 
-### 6. Job
+### 7. Job
 Talks to gen-orchestrator for inference jobs
 - `submit`, `get`, `logs`, `cancel`, `list`, `download`
 
-### 7. Models
+### 8. Models
 Talks to cozy-hub for model management
 - `download`, `list`, `search`, `get`, `url`
 - `upload`, `delete` (admin only)
+
+## Project Configuration
+
+Projects require a `pyproject.toml` with `[tool.cozy]` configuration:
+
+```toml
+[project]
+name = "my-worker"
+dependencies = ["gen-worker", "torch", "diffusers"]
+
+[tool.cozy]
+deployment-id = "my-deployment"
+python = "3.11"
+pytorch = "2.5"
+cuda = "12.6"
+
+[tool.cozy.environment]
+HF_HOME = "/app/.cache/huggingface"
+
+# Optional: Define functions explicitly (auto-detected if omitted)
+[tool.cozy.functions]
+generate = { requires_gpu = true }
+health = { requires_gpu = false }
+```
+
+Functions can be defined three ways (in priority order):
+1. `--functions` CLI flag
+2. `[tool.cozy.functions]` in pyproject.toml
+3. Auto-detection from `@worker_function()` decorators

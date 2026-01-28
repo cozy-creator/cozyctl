@@ -69,10 +69,11 @@ func RunLogin(apiKey, hubURL, builderURL, tenantID, name, profile string) error 
 		CurrentName:    name,
 		CurrentProfile: profile,
 		Config: &config.ConfigData{
-			HubURL:     hubURL,
-			BuilderURL: builderURL,
-			TenantID:   tenantID,
-			Token:      apiKey,
+			HubURL:          hubURL,
+			BuilderURL:      builderURL,
+			OrchestratorURL: config.DefaultConfigData().OrchestratorURL,
+			TenantID:        tenantID,
+			Token:           apiKey,
 		},
 	}
 

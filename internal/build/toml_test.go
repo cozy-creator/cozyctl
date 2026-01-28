@@ -18,7 +18,7 @@ func TestGetToolsCozyConfig(t *testing.T) {
 		projectRoot := filepath.Join(cwd, "..", "..")
 		testFile := filepath.Join(projectRoot, "test", "config", "sdxl-turbo-worker", "pyproject.toml")
 
-		config, err := getToolsCozyConfig(testFile)
+		config, err := GetToolsCozyConfig(testFile)
 		if err != nil {
 			t.Fatalf("failed to parse config: %v", err)
 		}

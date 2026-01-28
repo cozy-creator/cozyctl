@@ -26,10 +26,11 @@ type ProfileConfig struct {
 
 // ConfigData holds the actual configuration values
 type ConfigData struct {
-	HubURL     string `yaml:"hub_url"`
-	BuilderURL string `yaml:"builder_url"`
-	TenantID   string `yaml:"tenant_id"`
-	Token      string `yaml:"token"`
+	HubURL          string `yaml:"hub_url"`
+	BuilderURL      string `yaml:"builder_url"`
+	OrchestratorURL string `yaml:"orchestrator_url"`
+	TenantID        string `yaml:"tenant_id"`
+	Token           string `yaml:"token"`
 }
 
 // BaseDir returns the base config directory (~/.cozy)
@@ -182,6 +183,7 @@ func GetProfileConfig(name, profile string) (*ProfileConfig, error) {
 	// Set defaults
 	v.SetDefault("config.hub_url", "https://api.cozy.art")
 	v.SetDefault("config.builder_url", "https://builder.cozy.art")
+	v.SetDefault("config.orchestrator_url", "http://localhost:8090")
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read profile config: %w", err)
@@ -199,6 +201,9 @@ func GetProfileConfig(name, profile string) (*ProfileConfig, error) {
 		}
 		if v.IsSet("builder_url") {
 			cfg.Config.BuilderURL = v.GetString("builder_url")
+		}
+		if v.IsSet("orchestrator_url") {
+			cfg.Config.OrchestratorURL = v.GetString("orchestrator_url")
 		}
 		if v.IsSet("token") {
 			cfg.Config.Token = v.GetString("token")
@@ -235,6 +240,7 @@ func SaveProfileConfig(name, profile string, cfg *ProfileConfig) error {
 	if cfg.Config != nil {
 		v.Set("config.hub_url", cfg.Config.HubURL)
 		v.Set("config.builder_url", cfg.Config.BuilderURL)
+		v.Set("config.orchestrator_url", cfg.Config.OrchestratorURL)
 		v.Set("config.tenant_id", cfg.Config.TenantID)
 		v.Set("config.token", cfg.Config.Token)
 	}
@@ -389,8 +395,9 @@ func (c *ConfigData) Validate() error {
 // DefaultConfigData returns default config values
 func DefaultConfigData() *ConfigData {
 	return &ConfigData{
-		HubURL:     "https://api.cozy.art",
-		BuilderURL: "https://builder.cozy.art",
+		HubURL:          "https://api.cozy.art",
+		BuilderURL:      "https://builder.cozy.art",
+		OrchestratorURL: "http://localhost:8090",
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/cozy-creator/cozyctl/cmd/login"
 	logoutCmd "github.com/cozy-creator/cozyctl/cmd/logout"
 	profileCmd "github.com/cozy-creator/cozyctl/cmd/profiles"
+	"github.com/cozy-creator/cozyctl/cmd/update"
 	"github.com/cozy-creator/cozyctl/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -26,8 +27,8 @@ func Execute() error {
 		Long: `cozyctl is a command-line tool for deploying and managing
 machine learning functions on the Cozy platform.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Skip config loading for these commands
-			skipCommands := []string{"login", "profiles", "use", "current", "delete", "build"}
+			// Skip config loading for these commands (they handle their own config)
+			skipCommands := []string{"login", "profiles", "use", "current", "delete", "build", "deploy", "update"}
 			isTrue := slices.Contains(skipCommands, cmd.Name())
 			if isTrue {
 				return nil
@@ -66,6 +67,7 @@ machine learning functions on the Cozy platform.`,
 	rootCmd.AddCommand(loginCmd.LoginCmd())
 	rootCmd.AddCommand(logoutCmd.LogoutCmd())
 	rootCmd.AddCommand(deploy.DeployCmd())
+	rootCmd.AddCommand(update.UpdateCmd())
 	rootCmd.AddCommand(build.BuildCmd())
 	rootCmd.AddCommand(profileCmd.ProfileCmd())
 
