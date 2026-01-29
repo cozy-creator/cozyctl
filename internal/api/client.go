@@ -28,6 +28,53 @@ func NewClient(baseURL, token string) *Client {
 	}
 }
 
+// DeployWithBuildID deploys using a build ID.
+// The orchestrator fetches build metadata from S3 and handles deployment.
+func (c *Client) DeployWithBuildID(req *DeployWithBuildIDRequest) (*DeploymentResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.baseURL+"/v1/deployments", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusConflict {
+		return nil, fmt.Errorf("deployment already exists (use 'cozyctl update' to update)")
+	}
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if json.Unmarshal(respBody, &errResp) == nil && errResp.Message != "" {
+			return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, errResp.Message)
+		}
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var deployment DeploymentResponse
+	if err := json.Unmarshal(respBody, &deployment); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &deployment, nil
+}
+
 // CreateDeployment creates a new deployment.
 func (c *Client) CreateDeployment(req *CreateDeploymentRequest) (*DeploymentResponse, error) {
 	body, err := json.Marshal(req)

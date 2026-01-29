@@ -31,6 +31,13 @@ type UpdateDeploymentRequest struct {
 	MaxWorkers           *int                `json:"max_workers,omitempty"`
 }
 
+// DeployWithBuildIDRequest is the request body for deploying with a build ID.
+// The orchestrator fetches build metadata from S3 and handles deployment.
+type DeployWithBuildIDRequest struct {
+	BuildID  string `json:"build_id"`
+	TenantID string `json:"tenant_id"`
+}
+
 // DeploymentResponse is the response from deployment operations.
 type DeploymentResponse struct {
 	ID                   string              `json:"id"`
