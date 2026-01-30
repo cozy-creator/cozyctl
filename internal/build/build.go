@@ -165,7 +165,7 @@ func BuildProjectOnServer(projectDir string) error {
 	// Poll for completion
 	fmt.Println("\nWaiting for build to complete...")
 	pollInterval := 5 * time.Second
-	pollTimeout := 30 * time.Minute
+	pollTimeout := 4 * time.Hour
 	deadline := time.Now().Add(pollTimeout)
 	lastStatus := ""
 
