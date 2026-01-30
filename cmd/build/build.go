@@ -1,7 +1,7 @@
 package build
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/cozy-creator/cozyctl/internal/build"
 	"github.com/spf13/cobra"
@@ -15,30 +15,23 @@ var (
 func BuildCmd() *cobra.Command {
 	buildCmd := &cobra.Command{
 		Use:   "build",
-		Short: "Manage builds",
-		Long:  `Manage builds on the Cozy platform.`,
+		Short: "Build a project",
+		Long: `Build a project on the Cozy platform.
+
+By default, uploads the project to gen-builder for server-side building.
+Use --local to build locally with Docker instead.
+
+Examples:
+  cozyctl build --dir ./my-project
+  cozyctl build --local --dir ./my-project`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			// Get current Configs
-			// config, err := config.GetDefaultConfig()
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// We would find the project by directory. Then check if local or not.
-			// If local then build here else tar it up and send to the gen-builder to build.
-			// This way it makes it compatible to build locally and github actions.
-			if BuildProjectLocally {
-				if BuildProjectDirectory == "" {
-					log.Println("Please specifiy an path of the project you want to build.")
-					return nil
-				}
-				err := build.BuildProjectLocally(BuildProjectDirectory)
-				return err
-			} else {
-				// err := build.BuildProjectOnServer(config)
-				return nil
+			if BuildProjectDirectory == "" {
+				return fmt.Errorf("please specify a project path with --dir/-d")
 			}
+			if BuildProjectLocally {
+				return build.BuildProjectLocally(BuildProjectDirectory)
+			}
+			return build.BuildProjectOnServer(BuildProjectDirectory)
 		},
 	}
 

@@ -8,15 +8,15 @@ import (
 func DeployCmd() *cobra.Command {
 	deployCmd := &cobra.Command{
 		Use:   "deploy <build-id>",
-		Short: "Deploy a build to the orchestrator",
+		Short: "Deploy a build via gen-builder",
 		Long: `Deploy a previously built image using its build ID.
 
-The orchestrator will fetch the build metadata from S3 and register the deployment.
+Gen-builder will promote the build and register the deployment with the orchestrator.
 
 This command will:
 1. Read tenant-id from your config
-2. Send build-id and tenant-id to the orchestrator
-3. The orchestrator handles fetching metadata from S3 and deploying
+2. Send build-id to gen-builder
+3. Gen-builder promotes the build, registers with orchestrator
 
 Example:
   cozyctl deploy abc-123-def-456`,

@@ -7,9 +7,9 @@ import (
 	"github.com/cozy-creator/cozyctl/internal/config"
 )
 
-// Run executes the deploy process: send build-id to orchestrator.
+// Run executes the deploy process: send build-id to gen-builder for promotion.
 func Run(buildID string) error {
-	// Load config for tenant-id and orchestrator URL
+	// Load config for tenant-id and builder URL
 	defaultCfg, err := config.GetDefaultConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -32,23 +32,18 @@ func Run(buildID string) error {
 	fmt.Printf("Tenant ID: %s\n", tenantID)
 	fmt.Printf("Build ID: %s\n", buildID)
 
-	// Get orchestrator URL
-	orchestratorURL := profileCfg.Config.OrchestratorURL
-	if orchestratorURL == "" {
-		orchestratorURL = config.DefaultConfigData().OrchestratorURL
+	// Get builder URL
+	builderURL := profileCfg.Config.BuilderURL
+	if builderURL == "" {
+		builderURL = config.DefaultConfigData().BuilderURL
 	}
 
-	// Create API client
-	client := api.NewClient(orchestratorURL, profileCfg.Config.Token)
+	// Create builder API client
+	client := api.NewBuilderClient(builderURL, profileCfg.Config.Token)
 
-	// Deploy with build ID
-	fmt.Println("\nDeploying to orchestrator...")
-	req := &api.DeployWithBuildIDRequest{
-		BuildID:  buildID,
-		TenantID: tenantID,
-	}
-
-	deployment, err := client.DeployWithBuildID(req)
+	// Deploy via gen-builder
+	fmt.Println("\nDeploying via gen-builder...")
+	deployment, err := client.DeployBuild(buildID, tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to deploy: %w", err)
 	}
@@ -56,18 +51,8 @@ func Run(buildID string) error {
 	fmt.Printf("\nDeployment successful!\n")
 	fmt.Printf("  ID: %s\n", deployment.ID)
 	fmt.Printf("  Tenant: %s\n", deployment.TenantID)
-	fmt.Printf("  Name: %s\n", deployment.Name)
-	fmt.Printf("  Image: %s\n", deployment.ImageURL)
-	if len(deployment.FunctionRequirements) > 0 {
-		fmt.Printf("  Functions: %d\n", len(deployment.FunctionRequirements))
-		for _, fn := range deployment.FunctionRequirements {
-			gpuStr := "CPU"
-			if fn.RequiresGPU {
-				gpuStr = "GPU"
-			}
-			fmt.Printf("    - %s (%s)\n", fn.Name, gpuStr)
-		}
-	}
+	fmt.Printf("  Active Build: %s\n", deployment.ActiveBuildID)
+	fmt.Printf("  Image: %s\n", deployment.ImageTag)
 
 	return nil
 }
