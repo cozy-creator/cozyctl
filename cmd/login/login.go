@@ -91,8 +91,8 @@ Examples:
 	loginCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "password for login")
 	loginCmd.Flags().StringVar(&loginAPIKey, "api-key", "", "API key (or set COZY_API_KEY)")
 	loginCmd.Flags().StringVar(&loginConfigFile, "config-file", "", "import existing config file")
-	loginCmd.Flags().StringVar(&loginHubURL, "hub-url", "https://api.cozy.art", "Cozy Hub API URL")
-	loginCmd.Flags().StringVar(&loginBuilderURL, "builder-url", "https://api.cozy.art", "Builder API URL (now part of cozy-hub)")
+	loginCmd.Flags().StringVar(&loginHubURL, "hub-url", "http://localhost:3001", "Cozy Hub API URL")
+	loginCmd.Flags().StringVar(&loginBuilderURL, "builder-url", "http://localhost:3001", "Builder API URL (now part of cozy-hub)")
 	loginCmd.Flags().StringVar(&loginTenantID, "tenant-id", "", "tenant ID (usually auto-detected)")
 
 	return loginCmd

@@ -31,12 +31,25 @@ Examples:
 				return logout.DefaultLogout()
 			}
 
-			if len(profile) == 0 {
+			if len(profile) == 0 || (len(profile) == 1 && profile[0] == "") {
 				// This means get all the configs in the directory of the name we have got and clear the token.
-				return logout.NameOnlyLogout()
+				return logout.NameOnlyLogout(name)
 			}
 
-			return nil
+			// Filter out empty strings from profile slice
+			var validProfiles []string
+			for _, p := range profile {
+				if p != "" {
+					validProfiles = append(validProfiles, p)
+				}
+			}
+
+			if len(validProfiles) == 0 {
+				return logout.NameOnlyLogout(name)
+			}
+
+			// Logout specific profiles under the given name
+			return logout.ProfileLogout(name, validProfiles)
 		},
 	}
 

@@ -13,25 +13,25 @@ import (
 // DefaultConfig points to the currently active name+profile
 // The place is ~/.cozy/default/config.yaml
 type DefaultConfig struct {
-	CurrentName    string `yaml:"current_name"`
-	CurrentProfile string `yaml:"current_profile"`
+	CurrentName    string `yaml:"current_name" mapstructure:"current_name"`
+	CurrentProfile string `yaml:"current_profile" mapstructure:"current_profile"`
 }
 
 // ProfileConfig holds the complete configuration for a name+profile
 type ProfileConfig struct {
-	CurrentName    string      `yaml:"current_name"`
-	CurrentProfile string      `yaml:"current_profile"`
-	Config         *ConfigData `yaml:"config"`
+	CurrentName    string      `yaml:"current_name" mapstructure:"current_name"`
+	CurrentProfile string      `yaml:"current_profile" mapstructure:"current_profile"`
+	Config         *ConfigData `yaml:"config" mapstructure:"config"`
 }
 
 // ConfigData holds the actual configuration values
 type ConfigData struct {
-	HubURL          string `yaml:"hub_url"`
-	BuilderURL      string `yaml:"builder_url"`
-	OrchestratorURL string `yaml:"orchestrator_url"`
-	TenantID        string `yaml:"tenant_id"`
-	Token           string `yaml:"token"`
-	RefreshToken    string `yaml:"refresh_token,omitempty"`
+	HubURL          string `yaml:"hub_url" mapstructure:"hub_url"`
+	BuilderURL      string `yaml:"builder_url" mapstructure:"builder_url"`
+	OrchestratorURL string `yaml:"orchestrator_url" mapstructure:"orchestrator_url"`
+	TenantID        string `yaml:"tenant_id" mapstructure:"tenant_id"`
+	Token           string `yaml:"token" mapstructure:"token"`
+	RefreshToken    string `yaml:"refresh_token,omitempty" mapstructure:"refresh_token"`
 }
 
 // BaseDir returns the base config directory (~/.cozy)
@@ -175,8 +175,8 @@ func GetProfileConfig(name, profile string) (*ProfileConfig, error) {
 	v.AutomaticEnv()
 
 	// Set defaults
-	v.SetDefault("config.hub_url", "https://api.cozy.art")
-	v.SetDefault("config.builder_url", "https://api.cozy.art")
+	v.SetDefault("config.hub_url", "http://localhost:3001")
+	v.SetDefault("config.builder_url", "http://localhost:3001")
 	v.SetDefault("config.orchestrator_url", "http://localhost:8090")
 
 	if err := v.ReadInConfig(); err != nil {
@@ -388,8 +388,8 @@ func (c *ConfigData) Validate() error {
 // DefaultConfigData returns default config values
 func DefaultConfigData() *ConfigData {
 	return &ConfigData{
-		HubURL:          "https://api.cozy.art",
-		BuilderURL:      "https://api.cozy.art",
+		HubURL:          "http://localhost:3001",
+		BuilderURL:      "http://localhost:3001",
 		OrchestratorURL: "http://localhost:8090",
 	}
 }
