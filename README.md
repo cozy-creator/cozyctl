@@ -4,7 +4,6 @@ A command-line tool for deploying and managing machine learning functions on the
 
 cozyctl makes it convenient for developers to interact with:
 
-- **Gen-Builder** service - Create and manage deployments
 - **Cozy-Hub** service - Upload and download model weights
 - **Gen-Orchestrator** service - Invoke functions and fetch results
 
@@ -48,19 +47,15 @@ cozyctl supports managing multiple accounts and environments through a two-level
 ### Authentication with Profiles
 
 ```bash
-# Login with default profile
-cozyctl login --api-key YOUR_API_KEY
-
-# Login with custom name and profile
-cozyctl login --name briheet --profile dev --api-key YOUR_DEV_KEY
-cozyctl login --name briheet --profile prod --api-key YOUR_PROD_KEY
-
-# Login to work account
-cozyctl login --name work --profile staging --api-key WORK_KEY
-
-# Import existing config file
-cozyctl login --name briheet --profile prod --config-file ./prod-config.yaml
+# With flags
+cozyctl login --hub-url http://localhost:3001 --email test@example.com --password testpass123
 ```
+
+```bash
+# With bash profiles
+cozyctl login --hub-url http://localhost:3001 --email test@example.com --password testpass123 --name test --profile dev
+```
+
 
 ### Managing Profiles
 
@@ -112,10 +107,6 @@ Profiles are stored in `~/.cozy/`:
           └── config.yaml                # Config for work/prod
 ```
 
-For detailed documentation, see [docs/login.md](docs/login.md).
-
-See [example.config.yaml](example.config.yaml) for a sample configuration file structure.
-
 ## Commands
 
 ### 1. Login
@@ -159,33 +150,6 @@ Build Docker images locally from projects with `pyproject.toml`
 ```bash
 cozyctl build -l -d ./path/to/project
 ```
-
-#### Local Build Demo
-
-Test with the included SDXL-Turbo worker:
-
-```bash
-# Build the image
-./bin/cozyctl build -l -d ./test/config/sdxl-turbo-worker/
-
-# Download model (~7GB, one-time)
-huggingface-cli download stabilityai/sdxl-turbo --local-dir ~/models/sdxl-turbo
-
-# Run the container
-docker run \
-  -v ~/models/sdxl-turbo:/models/sdxl-turbo \
-  -v $(pwd)/test/test-output:/output \
-  -e MODEL_PATH=/models/sdxl-turbo \
-  cozy-build-sdxl-turbo-test-<build-id>:latest
-
-# View result
-open test/test-output/output.png
-```
-
-Base image auto-selected from `[tool.cozy]` config:
-- CPU: `python:3.11-slim`
-- PyTorch CPU: `cozycreator/gen-worker:cpu-torch2.9`
-- PyTorch + CUDA: `cozycreator/gen-worker:cuda12.6-torch2.9`
 
 ### 6. Profiles
 Manage configuration profiles

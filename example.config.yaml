@@ -10,11 +10,11 @@ current_profile: dev
 
 # Configs
 config:
-  # Cozy Hub API URL - for authentication and model management
+  # Cozy Hub API URL - for authentication, model management, and builds
   hub_url: https://api.cozy.art
 
-  # Gen-Builder API URL - for deployments and builds
-  builder_url: https://builder.cozy.art
+  # Builder API URL - builder is now part of cozy-hub (same URL)
+  builder_url: https://api.cozy.art
 
   # Gen-Orchestrator API URL - for deployment management and worker scheduling
   orchestrator_url: http://localhost:8090

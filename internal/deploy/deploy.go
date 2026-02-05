@@ -7,7 +7,7 @@ import (
 	"github.com/cozy-creator/cozyctl/internal/config"
 )
 
-// Run executes the deploy process: send build-id to gen-builder for promotion.
+// Run executes the deploy process: send build-id to cozy-hub for promotion.
 func Run(buildID string) error {
 	// Load config for tenant-id and builder URL
 	defaultCfg, err := config.GetDefaultConfig()
@@ -38,11 +38,11 @@ func Run(buildID string) error {
 		builderURL = config.DefaultConfigData().BuilderURL
 	}
 
-	// Create builder API client
+	// Create cozy-hub builder API client
 	client := api.NewBuilderClient(builderURL, profileCfg.Config.Token)
 
-	// Deploy via gen-builder
-	fmt.Println("\nDeploying via gen-builder...")
+	// Deploy via cozy-hub
+	fmt.Println("\nDeploying via cozy-hub...")
 	deployment, err := client.DeployBuild(buildID, tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to deploy: %w", err)

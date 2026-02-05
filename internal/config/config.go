@@ -31,6 +31,7 @@ type ConfigData struct {
 	OrchestratorURL string `yaml:"orchestrator_url"`
 	TenantID        string `yaml:"tenant_id"`
 	Token           string `yaml:"token"`
+	RefreshToken    string `yaml:"refresh_token,omitempty"`
 }
 
 // BaseDir returns the base config directory (~/.cozy)
@@ -138,16 +139,9 @@ func SaveDefaultConfig(name, profile string) error {
 	v.Set("current_name", name)
 	v.Set("current_profile", profile)
 
-	// Write config
-	if err := v.SafeWriteConfig(); err != nil {
-		// If file exists, use WriteConfig
-		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
-			if err := v.WriteConfig(); err != nil {
-				return fmt.Errorf("failed to write default config: %w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to write default config: %w", err)
-		}
+	// Write config using WriteConfigAs which handles both new and existing files
+	if err := v.WriteConfigAs(configPath); err != nil {
+		return fmt.Errorf("failed to write default config: %w", err)
 	}
 
 	// Ensure correct permissions
@@ -182,7 +176,7 @@ func GetProfileConfig(name, profile string) (*ProfileConfig, error) {
 
 	// Set defaults
 	v.SetDefault("config.hub_url", "https://api.cozy.art")
-	v.SetDefault("config.builder_url", "https://builder.cozy.art")
+	v.SetDefault("config.builder_url", "https://api.cozy.art")
 	v.SetDefault("config.orchestrator_url", "http://localhost:8090")
 
 	if err := v.ReadInConfig(); err != nil {
@@ -210,6 +204,9 @@ func GetProfileConfig(name, profile string) (*ProfileConfig, error) {
 		}
 		if v.IsSet("tenant_id") {
 			cfg.Config.TenantID = v.GetString("tenant_id")
+		}
+		if v.IsSet("refresh_token") {
+			cfg.Config.RefreshToken = v.GetString("refresh_token")
 		}
 	}
 
@@ -243,18 +240,14 @@ func SaveProfileConfig(name, profile string, cfg *ProfileConfig) error {
 		v.Set("config.orchestrator_url", cfg.Config.OrchestratorURL)
 		v.Set("config.tenant_id", cfg.Config.TenantID)
 		v.Set("config.token", cfg.Config.Token)
+		if cfg.Config.RefreshToken != "" {
+			v.Set("config.refresh_token", cfg.Config.RefreshToken)
+		}
 	}
 
-	// Write config
-	if err := v.SafeWriteConfig(); err != nil {
-		// If file exists, use WriteConfig
-		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
-			if err := v.WriteConfig(); err != nil {
-				return fmt.Errorf("failed to write profile config: %w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to write profile config: %w", err)
-		}
+	// Write config using WriteConfigAs which handles both new and existing files
+	if err := v.WriteConfigAs(configPath); err != nil {
+		return fmt.Errorf("failed to write profile config: %w", err)
 	}
 
 	// Ensure correct permissions
@@ -295,13 +288,13 @@ func ListAllProfiles() ([]struct{ Name, Profile string }, error) {
 
 	for _, nameEntry := range nameEntries {
 		if !nameEntry.IsDir() || nameEntry.Name() == "default" {
-			continue // Skip the default pointer directory
+			continue
 		}
 
 		namePath := filepath.Join(base, nameEntry.Name())
 		profileEntries, err := os.ReadDir(namePath)
 		if err != nil {
-			continue // Skip directories we can't read
+			continue
 		}
 
 		for _, profileEntry := range profileEntries {
@@ -396,7 +389,7 @@ func (c *ConfigData) Validate() error {
 func DefaultConfigData() *ConfigData {
 	return &ConfigData{
 		HubURL:          "https://api.cozy.art",
-		BuilderURL:      "https://builder.cozy.art",
+		BuilderURL:      "https://api.cozy.art",
 		OrchestratorURL: "http://localhost:8090",
 	}
 }

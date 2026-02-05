@@ -151,10 +151,10 @@ func BuildProjectOnServer(projectDir string) error {
 	// Use directory name as build name
 	buildName := filepath.Base(projectDir)
 
-	// Upload to gen-builder
+	// Upload to cozy-hub builder
 	client := api.NewBuilderClient(builderURL, profileCfg.Config.Token)
 
-	fmt.Printf("Uploading to gen-builder at %s...\n", builderURL)
+	fmt.Printf("Uploading to cozy-hub at %s...\n", builderURL)
 	buildResp, err := client.UploadBuild(tarball, buildName)
 	if err != nil {
 		return fmt.Errorf("failed to upload build: %w", err)
@@ -183,7 +183,7 @@ func BuildProjectOnServer(projectDir string) error {
 		}
 
 		switch status.Status {
-		case "success":
+		case "success", "succeeded":
 			fmt.Printf("\nBuild completed successfully!\n")
 			fmt.Printf("  Build ID:  %s\n", status.ID)
 			fmt.Printf("  Image Tag: %s\n", status.ImageTag)
@@ -199,7 +199,10 @@ func BuildProjectOnServer(projectDir string) error {
 			}
 			return fmt.Errorf("build failed: %s", errMsg)
 
-		case "pending", "running":
+		case "canceled":
+			return fmt.Errorf("build was canceled")
+
+		case "pending", "queued", "running":
 			time.Sleep(pollInterval)
 			continue
 

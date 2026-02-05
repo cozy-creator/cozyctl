@@ -18,7 +18,7 @@ func BuildCmd() *cobra.Command {
 		Short: "Build a project",
 		Long: `Build a project on the Cozy platform.
 
-By default, uploads the project to gen-builder for server-side building.
+By default, uploads the project to cozy-hub for server-side building.
 Use --local to build locally with Docker instead.
 
 Examples:
